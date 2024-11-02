@@ -1,6 +1,5 @@
 bs4
 urllib3
-sqlite3
+tqdm
 requests
-json
 node_vm2
