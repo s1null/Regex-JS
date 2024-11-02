@@ -50,4 +50,4 @@ class Project():
         matcher = RegexMatcher(regex_file)
         matcher.scan_directory(directory)
         matcher.generate_report(f'reports/{host}_report.html')
-        print(f'Utils().getMyWord("{report_path}"): reports/{host}_report.html')
+        print("[!] "+ Utils().getMyWord("{report_path}"): +f'reports/{host}_report.html')
