@@ -49,5 +49,5 @@ class Project():
 
         matcher = RegexMatcher(regex_file)
         matcher.scan_directory(directory)
-        matcher.generate_report(f'report/{host}_report.html')
-        print(f'{report_path}: report/{host}_report.html')
+        matcher.generate_report(f'reports/{host}_report.html')
+        print(f'Utils().getMyWord("{report_path}"): reports/{host}_report.html')
