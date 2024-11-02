@@ -57,3 +57,8 @@
    ```bash
    pip3 install -r requirements.txt
    ```
+## 使用方法
+
+```
+   python3 main.py -u URL
+   ```
