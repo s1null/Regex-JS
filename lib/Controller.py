@@ -44,6 +44,8 @@ class Project():
         
         res = urlparse(self.url)
         host = res.netloc
+        if ":" in host:
+            host = str(host).replace(":", "_") #处理端口号
         directory = "tmp" + os.sep + projectTag + "_" + host
         regex_file = os.getcwd() + os.sep + "RegexLibrary.json"  # 替换为正则表达式库文件路径
 
