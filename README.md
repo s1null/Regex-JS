@@ -126,14 +126,7 @@ python3 main.py -h
 
 ## 🎉 扫描结果展示
 
-### 1. 命令行运行界面
-![运行界面](docs/images/running.png)
-
-### 2. HTML报告概览
-![报告概览](docs/images/report_overview.png)
-
-### 3. 敏感信息详情
-![敏感信息](docs/images/sensitive_info.png)
+![image](https://github.com/user-attachments/assets/4719e2f6-1204-4331-94f0-335cbf394498)
 
 扫描完成后，工具会在当前目录生成一个HTML报告，包含：
 - 发现的敏感信息列表
@@ -143,14 +136,13 @@ python3 main.py -h
 
 ### 4. 检测类型
 目前支持检测的敏感信息类型包括：
-- 🔑 API密钥和Token
-- 💳 数据库连接字符串
+- 💳 各类accesskey
 - 📧 邮箱地址
 - 🔒 密码和加密信息
-- 🌐 内部API接口
+- 🌐 API接口
 - 📱 手机号码
 - 🆔 身份证号码
-- 💻 IP地址和域名
+- 💻 IP
 - 更多...
 
 ## 🤝 贡献代码
