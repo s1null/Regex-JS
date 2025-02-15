@@ -10,13 +10,16 @@ class CommandLines():
         parse = optparse.OptionParser()
         parse.add_option('-u', '--url', dest='url', help='Please Enter the Target Site')
         
-        parse.add_option('-c', '--cookie', dest='cookie', help='Please Enter the Site Cookies')
+        parse.add_option('-c', '--cookie', dest='cookie', 
+                        help='Please Enter the Site Cookies. Example: --cookie "PHPSESSID=xxx" or --cookie "Cookie: PHPSESSID=xxx"')
 
-        parse.add_option('-d', '--head', dest='head', default='Cache-Control:no-cache', help='Please Enter the extra HTTP head')
+        parse.add_option('-d', '--head', dest='head', default='Cache-Control:no-cache',
+                        help='Please Enter the extra HTTP headers. Example: --head "Authorization: Bearer xxx" or --head "X-Token: xxx". Multiple headers split by ||')
         
         parse.add_option('-l', '--lang', dest='language', default='zh', help='Please Select Language')
 
-        parse.add_option('-p', '--proxy', dest='proxy', type=str, help='Please Enter your own Proxy Address')
+        parse.add_option('-p', '--proxy', dest='proxy', type=str, 
+                        help='Please Enter your own Proxy Address. Example: --proxy "http://127.0.0.1:8080" or --proxy "socks5://127.0.0.1:1080"')
 
         parse.add_option('-j', '--js', dest='js', type=str, help='Extra JS Files')
         parse.add_option('-s', '--silent', dest='silent', type=str, help='Silent Mode (Custom Report Name)')

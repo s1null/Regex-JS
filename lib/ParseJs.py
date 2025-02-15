@@ -34,6 +34,11 @@ class ParseJs():  # 获取js进行提取
             }
         DatabaseType(self.projectTag).createProjectDatabase(self.url, 1, "0")
         self.log = creatLog().get_logger()
+        
+        # 处理额外的JS文件
+        self.extra_js_files = []
+        if options.js:
+            self.extra_js_files = options.js.split(',')
 
     def requestUrl(self):
         headers = self.header
@@ -184,3 +189,10 @@ class ParseJs():  # 获取js进行提取
         # unique_tag = DatabaseType().createProjectDatabase(self.url, 1, "0")
         # print(self.url)
         self.requestUrl()
+        
+        # 处理额外的JS文件
+        for js_file in self.extra_js_files:
+            if os.path.exists(js_file):
+                self.jsPaths.append(js_file)
+            else:
+                self.log.warning(f"额外JS文件不存在: {js_file}")

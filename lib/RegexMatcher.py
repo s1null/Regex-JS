@@ -18,10 +18,26 @@ class RegexMatcher():
             'patterns_matched': defaultdict(int),
             'scan_time': None
         }
+        
+        # 动态生成中文分类映射
+        self.CATEGORY_MAP = self._generate_category_map()
 
     def _load_regex_library(self, file_path):
         with open(file_path, 'r', encoding='utf-8') as f:
             return json.load(f)
+
+    def _generate_category_map(self):
+        """动态生成分类映射"""
+        base_map = {
+        }
+        
+        # 从正则库中获取所有pattern名称
+        for pattern_name in self.regex_library.keys():
+            if pattern_name not in base_map:
+                # 对于未定义映射的pattern,使用pattern名称本身
+                base_map[pattern_name] = pattern_name.replace('_', ' ').title()
+                
+        return base_map
 
     def scan_directory(self, directory):
         start_time = datetime.now()
@@ -31,180 +47,114 @@ class RegexMatcher():
         for dirpath, _, filenames in os.walk(directory):
             self.summary['total_files'] += len(filenames)
             for file in filenames:
-                self._scan_file(directory, file)
+                self._scan_file(os.path.join(dirpath, file), file)
 
         self.summary['scan_time'] = (datetime.now() - start_time).total_seconds()
 
-    def _scan_file(self, directory, file):
+    def _scan_file(self, file_path, file_name):
         try:
-            with open(os.path.join(directory, file), "r", encoding='utf-8', errors='ignore') as f:
+            with open(file_path, "r", encoding='utf-8', errors='ignore') as f:
                 content = f.read()
-                self._process_content(file, content)
+                self._process_content(file_name, content)
         except Exception as e:
-            print(f"Error processing file {file}: {str(e)}")
+            print(f"Error processing file {file_name}: {str(e)}")
 
     def _process_content(self, file, content):
-        # 处理注释的特殊模式
-        comment_patterns = {
-            'single_line_comment': r'//[^\n]*',
-            'html_comment': r'<!--[\s\S]*?-->',
-            'multiline_comment': r'/\*[\s\S]*?\*/',
-            'single_line_c_style_comment': r'/\*[^\n]*\*/'
-        }
-
-        # 处理注释模式
-        for comment_type, pattern in comment_patterns.items():
-            matches = re.finditer(pattern, content, re.MULTILINE)
-            for match in matches:
-                match_str = match.group(0)
-                start_pos = match.start()
+        """处理文件内容"""
+        # 处理正则库中的模式
+        for regex_name, regex_pattern in self.regex_library.items():
+            if isinstance(regex_pattern, dict):  # 跳过嵌套模式
+                continue
+            
+            try:
+                matches = re.finditer(regex_pattern, content, re.MULTILINE | re.DOTALL)
+                unique_matches = set()
                 
-                # 检查是否应该跳过这个匹配
-                should_skip = False
-                if comment_type == 'single_line_c_style_comment' and '\n' in match_str:
-                    should_skip = True
-                if comment_type == 'multiline_comment' and '\n' not in match_str:
-                    should_skip = True
-
-                if not should_skip:
-                    line_number = content.count('\n', 0, start_pos) + 1
+                for match in matches:
+                    match_str = match.group(0)
+                    if not match_str.strip():  # 跳过空匹配
+                        continue
+                        
+                    start_pos = match.start()
+                    
+                    # HTML转义并保持换行格式
                     match_str = html.escape(match_str)
                     match_str = match_str.replace('\n', '<br>')
                     
-                    self.results[comment_type][file].append({
-                        'line_number': line_number,
-                        'match': match_str,
-                    })
-                    self.summary['total_matches'] += 1
-                    self.summary['patterns_matched'][comment_type] += 1
+                    if match_str not in unique_matches:
+                        unique_matches.add(match_str)
+                        line_number = content.count('\n', 0, start_pos) + 1
+                        
+                        category = self.CATEGORY_MAP.get(regex_name, regex_name)
+                        self.results[category][file].append({
+                            'line_number': line_number,
+                            'match': match_str,
+                        })
+                        self.summary['total_matches'] += 1
+                        self.summary['patterns_matched'][category] += 1
+            except Exception as e:
+                print(f"Error processing pattern {regex_name}: {str(e)}")
 
-        # 处理正则库中的其他模式
-        for regex_name, regex_pattern in self.regex_library.items():
-            if isinstance(regex_pattern, dict):  # Skip nested patterns
+    def convert_to_frontend_format(self):
+        """转换数据格式以匹配前端需求"""
+        frontend_data = {}
+        
+        for category, files in self.results.items():
+            if not files:  # 跳过空结果
                 continue
-            
-            matches = re.finditer(regex_pattern, content, re.MULTILINE | re.DOTALL)
-            unique_matches = set()
-            
-            for match in matches:
-                match_str = match.group(0)
-                start_pos = match.start()
                 
-                # HTML转义并保持换行格式
-                match_str = html.escape(match_str)
-                match_str = match_str.replace('\n', '<br>')
-                
-                if match_str not in unique_matches:
-                    unique_matches.add(match_str)
-                    line_number = content.count('\n', 0, start_pos) + 1
-                    
-                    self.results[regex_name][file].append({
-                        'line_number': line_number,
-                        'match': match_str,
+            frontend_data[category] = []
+            for file_name, matches in files.items():
+                for match in matches:
+                    frontend_data[category].append({
+                        "fileName": file_name,
+                        "lineNumber": match["line_number"],
+                        "content": match["match"]
                     })
-                    self.summary['total_matches'] += 1
-                    self.summary['patterns_matched'][regex_name] += 1
+        
+        # 添加调试输出
+        
+        return frontend_data
 
     def generate_report(self, output_file):
-            pattern_summary = "".join(
-                f"<li>{pattern.replace('_', ' ').title()}: {count} matches</li>"
-                for pattern, count in self.summary['patterns_matched'].items()
-            )
-
-            match_results = ""
-            
-            comment_types = ['single_line_comment', 'multiline_comment', 'html_comment']
-            for regex_name in comment_types:
-                if regex_name in self.results:
-                    display_name = regex_name.replace('_', ' ').title()
-                    match_results += self._generate_result_section(regex_name, display_name)
-
-            for regex_name, files in self.results.items():
-                if regex_name not in comment_types:
-                    display_name = regex_name.replace('_', ' ').title()
-                    match_results += self._generate_result_section(regex_name, display_name)
-
-            html_content = f"""
-            <!DOCTYPE html>
-            <html lang="en">
-            <head>
-                <meta charset="UTF-8">
-                <title>Pattern Match Report</title>
-                <style>
-                    body {{ font-family: Arial, sans-serif; background-color: #f0f2f5; color: #333; margin: 0; padding: 20px; }}
-                    .container {{ max-width: 900px; margin: auto; padding: 20px; background: #fff; border-radius: 8px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); }}
-                    h1 {{ text-align: center; font-size: 1.8em; color: #4a90e2; }}
-                    h2 {{ font-size: 1.4em; color: #333; margin-top: 30px; }}
-                    .summary {{ background-color: #e6f7ff; padding: 15px; border: 1px solid #b3e5ff; border-radius: 5px; margin-bottom: 20px; color: #005b99; }}
-                    .summary h3 {{ margin-top: 0; font-size: 1.2em; }}
-                    table {{ width: 100%; border-collapse: collapse; margin-top: 15px; }}
-                    th, td {{ padding: 10px; text-align: left; border-bottom: 1px solid #eee; }}
-                    th {{ background-color: #4a90e2; color: white; font-weight: bold; }}
-                    tr:hover {{ background-color: #f9f9f9; }}
-                    .toggle-btn {{ cursor: pointer; padding: 10px; font-size: 16px; color: #005b99; background-color: #f0f2f5; border: none; text-align: left; width: calc(100% - 120px); outline: none; transition: background-color 0.3s; border-radius: 5px; margin-top: 10px; display: inline-block; }}
-                    .toggle-btn:hover {{ background-color: #e6f7ff; }}
-                    .match-details {{ display: none; max-height: 300px; overflow-y: auto; border-top: 1px solid #ddd; margin-top: 5px; }}
-                    .match-content {{ white-space: pre-wrap; font-family: monospace; }}
-                    .copy-btn {{ cursor: pointer; padding: 10px; font-size: 14px; color: white; background-color: #4a90e2; border: none; border-radius: 5px; margin-left: 10px; transition: background-color 0.3s; }}
-                    .copy-btn:hover {{ background-color: #357abd; }}
-                    .button-container {{ display: flex; align-items: center; }}
-                    .success-message {{ color: green; margin-left: 10px; display: none; }}
-                </style>
-                <script>
-                    function toggleDetails(regexName) {{
-                        var details = document.getElementById("details-" + regexName);
-                        if (details.style.display === "none" || !details.style.display) {{
-                            details.style.display = "block";
-                        }} else {{
-                            details.style.display = "none";
-                        }}
-                    }}
-                    
-                    function copyResults(regexName) {{
-                        var table = document.getElementById("details-" + regexName);
-                        var rows = table.getElementsByTagName("tr");
-                        var text = "";
-                        
-                        // Skip header row, only collect match content
-                        for (var i = 1; i < rows.length; i++) {{
-                            var cells = rows[i].getElementsByTagName("td");
-                            // Only add the match content (third column)
-                            text += cells[2].textContent + "\\n";
-                        }}
-                        
-                        // Create temporary textarea to copy text
-                        var textarea = document.createElement("textarea");
-                        textarea.value = text;
-                        document.body.appendChild(textarea);
-                        textarea.select();
-                        document.execCommand("copy");
-                        document.body.removeChild(textarea);
-                        
-                        // Show success message
-                        var successMsg = document.getElementById("success-" + regexName);
-                        successMsg.style.display = "inline";
-                        setTimeout(function() {{
-                            successMsg.style.display = "none";
-                        }}, 2000);
-                    }}
-                </script>
-            </head>
-            <body>
-                <div class="container">
-                    <h1>Pattern Match Report</h1>
-                    <p style="text-align: center; font-size: 0.9em; color: #888;">Generated at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
-                    
-                    <h2>Match Results</h2>
-                    <div>
-                        {match_results}
-                    </div>
-                </div>
-            </body>
-            </html>
-            """
-
-            with open(output_file, 'w', encoding='utf-8') as f:
-                f.write(html_content)
+        """生成HTML报告"""
+        frontend_data = self.convert_to_frontend_format()
+        
+        if not frontend_data:
+            print("Warning: No matches found!")
+            frontend_data = {"未发现敏感信息": []}
+        
+        # 读取模板文件
+        template_path = os.path.join(os.path.dirname(__file__), 'mould.html')
+        with open(template_path, 'r', encoding='utf-8') as template:
+            html_content = template.read()
+        
+        # 查找模板中的数据注入点
+        start_marker = 'const sensitiveInfoReport = {'
+        end_marker = '})'
+        
+        # 构造要注入的数据字符串
+        data_injection = f'const sensitiveInfoReport = {json.dumps(frontend_data, ensure_ascii=False, indent=2)}'
+        
+        # 在模板中定位并替换示例数据
+        start_idx = html_content.find(start_marker)
+        if start_idx == -1:
+            raise ValueError("Could not find data injection point in template")
+        
+        end_idx = html_content.find(end_marker, start_idx)
+        if end_idx == -1:
+            raise ValueError("Could not find end of data section in template")
+        
+        # 替换整个数据部分
+        new_html_content = (
+            html_content[:start_idx] + 
+            data_injection + 
+            html_content[end_idx + len(end_marker):]
+        )
+        
+        # 写入输出文件
+        with open(output_file, 'w', encoding='utf-8') as f:
+            f.write(new_html_content)
 
     def _generate_result_section(self, regex_name, display_name):
             """生成单个结果部分的HTML"""

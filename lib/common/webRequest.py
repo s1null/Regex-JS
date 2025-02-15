@@ -35,37 +35,53 @@ class WebRequest(object): # 获取http返回的状态码
         self.urls = urls
         self.options = options
         self.proxy_data = {'http': self.options.proxy,'https': self.options.proxy}
+        
+        # 处理请求类型
+        self.request_type = options.sendtype.upper() if options.sendtype else 'GET'
+        
+        # 处理Content-Type
+        if options.contenttype:
+            headers['Content-Type'] = options.contenttype
+            
+        # 处理POST数据
+        self.post_data = options.postdata if options.postdata else None
+
+        # 处理请求头
+        self.headers = {
+            'User-Agent': random.choice(self.UserAgent),
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+        }
+        
+        # 处理Cookie
+        if options.cookie:
+            if options.cookie.lower().startswith('cookie:'):
+                self.headers['Cookie'] = options.cookie[7:].strip()
+            else:
+                self.headers['Cookie'] = options.cookie
+        
+        # 处理额外的请求头
+        if options.head:
+            for header in options.head.split('||'):
+                if ':' in header:
+                    key, value = header.split(':', 1)
+                    self.headers[key.strip()] = value.strip()
+                else:
+                    self.log.warning(f"Invalid header format: {header}")
 
     def check(self, url, options):
         urllib3.disable_warnings()  # 禁止跳出来对warning
         sslFlag = int(self.options.ssl_flag)
-        if self.options.cookie != None:
-            headers = {
-                'User-Agent': random.choice(self.UserAgent),
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                'Cookie':options.cookie,
-                self.options.head.split(':')[0]: self.options.head.split(':')[1]
-            }
-        else:
-            headers = {
-                'User-Agent': random.choice(self.UserAgent),
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                self.options.head.split(':')[0]: self.options.head.split(':')[1]
-
-            }
-
-        s = requests.Session()
-        s.keep_alive = False
+        
         try:
             if self.mode == 1:
                 try:
                     if sslFlag == 1:
-                        code = str(s.get(url, headers=headers, timeout=6, proxies=self.proxy_data, verify=False).status_code)  # 正常的返回code是int类型
+                        code = str(requests.get(url, headers=self.headers, timeout=6, 
+                                 proxies=self.proxy_data, verify=False).status_code)
                     else:
-                        code = str(s.get(url, headers=headers, timeout=6, proxies=self.proxy_data).status_code)
-                    # self.codes.append(url+": "+code)
+                        code = str(requests.get(url, headers=self.headers, timeout=6, 
+                                 proxies=self.proxy_data).status_code)
                     self.codes[url] = code
                 except Exception as e:
                     self.log.error("[Err] %s" % e)
@@ -74,9 +90,11 @@ class WebRequest(object): # 获取http返回的状态码
                 # 获取响应包
                 try:
                     if sslFlag == 1:
-                        response = str(s.get(url, headers=headers, timeout=6, proxies=self.proxy_data, verify=False).headers)
+                        response = str(requests.get(url, headers=self.headers, timeout=6, 
+                                 proxies=self.proxy_data, verify=False).headers)
                     else:
-                        response = str(s.get(url, headers=headers, timeout=6, proxies=self.proxy_data).headers)
+                        response = str(requests.get(url, headers=self.headers, timeout=6, 
+                                 proxies=self.proxy_data).headers)
                     self.responses.append(url + ": " + response)
                     return self.responses
                 except Exception as e:
@@ -87,11 +105,15 @@ class WebRequest(object): # 获取http返回的状态码
             if self.mode == 3:
                 try:
                     if sslFlag == 1:
-                        text = str(s.get(url, headers=headers, timeout=6, proxies=self.proxy_data, verify=False).text)
-                        response = str(s.get(url, headers=headers, timeout=6, proxies=self.proxy_data, verify=False).headers)
+                        text = str(requests.get(url, headers=self.headers, timeout=6, 
+                                 proxies=self.proxy_data, verify=False).text)
+                        response = str(requests.get(url, headers=self.headers, timeout=6, 
+                                 proxies=self.proxy_data, verify=False).headers)
                     else:
-                        text = str(s.get(url, headers=headers, timeout=6, proxies=self.proxy_data).text)
-                        response = str(s.get(url, headers=headers, timeout=6, proxies=self.proxy_data).headers)
+                        text = str(requests.get(url, headers=self.headers, timeout=6, 
+                                 proxies=self.proxy_data).text)
+                        response = str(requests.get(url, headers=self.headers, timeout=6, 
+                                 proxies=self.proxy_data).headers)
                     self.texts.append(url + ": " + text)
                     self.responses.append(response)
                     self.res = zip(self.responses, self.texts)
@@ -124,3 +146,25 @@ class WebRequest(object): # 获取http返回的状态码
         # pool = ThreadPoolExecutor(20)
         # [pool.submit(self.check,domain) for domain in self.urls]
         # time.sleep(1)
+
+    def request(self, url):
+        try:
+            if self.request_type == 'GET':
+                response = requests.get(
+                    url, 
+                    headers=self.headers,
+                    proxies=self.proxy_data,
+                    verify=not bool(int(self.options.ssl_flag))
+                )
+            else:
+                response = requests.post(
+                    url,
+                    headers=self.headers,
+                    data=self.post_data,
+                    proxies=self.proxy_data, 
+                    verify=not bool(int(self.options.ssl_flag))
+                )
+            return response
+        except Exception as e:
+            self.log.error(f"请求失败: {str(e)}")
+            return None

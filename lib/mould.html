@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JavaScript Sensitive Information Report</title>
+    <style>
+        :root {
+            --primary-color: #3498db;
+            --secondary-color: #2c3e50;
+            --background-color: #f5f7fa;
+            --text-color: #333333;
+            --sidebar-width: 250px;
+        }
+        body, html {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            height: 100%;
+            background-color: var(--background-color);
+            color: var(--text-color);
+        }
+        .dashboard {
+            display: flex;
+            height: 100%;
+        }
+        .sidebar {
+            width: var(--sidebar-width);
+            background-color: #ffffff;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+            padding: 20px;
+            overflow-y: auto;
+        }
+        .sidebar h2 {
+            margin-top: 0;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #e0e0e0;
+            color: var(--secondary-color);
+            font-weight: 300;
+        }
+        .sidebar ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        .sidebar li {
+            padding: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-radius: 4px;
+            margin-bottom: 5px;
+        }
+        .sidebar li:hover, .sidebar li.active {
+            background-color: var(--primary-color);
+            color: #ffffff;
+        }
+        .content {
+            flex-grow: 1;
+            padding: 30px;
+            overflow-y: auto;
+        }
+        .content h1 {
+            margin-top: 0;
+            color: var(--secondary-color);
+            font-weight: 300;
+            font-size: 2.5em;
+        }
+        .info-item {
+            background-color: #ffffff;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            transition: all 0.3s ease;
+        }
+        .info-item:hover {
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+        }
+        .file-name {
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+        .line-number {
+            color: #95a5a6;
+            font-size: 0.9em;
+        }
+        .sensitive-content {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 10px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.9em;
+            border-left: 3px solid var(--primary-color);
+        }
+        .pagination {
+            position: relative;
+            z-index: 10;
+            display: flex;
+            justify-content: center;
+            margin-top: 30px;
+        }
+        .pagination button {
+            margin: 0 5px;
+            padding: 8px 15px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        .pagination button:hover {
+            background-color: #2980b9;
+        }
+        .pagination button:disabled {
+            background-color: #bdc3c7;
+            cursor: not-allowed;
+        }
+        .pagination span {
+            align-self: center;
+            margin: 0 10px;
+        }
+        .search-container {
+            margin-bottom: 20px;
+        }
+        .search-input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        .copy-button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            margin-bottom: 20px;
+        }
+        .copy-button:hover {
+            background-color: #2980b9;
+        }
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #2ecc71;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 4px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 1;
+        }
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .items-per-page {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .items-per-page select {
+            appearance: none;
+            background-color: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            padding: 6px 24px 6px 12px;
+            font-size: 14px;
+            cursor: pointer;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 8px center;
+            min-width: 80px;
+        }
+        .items-per-page select:hover {
+            border-color: #cbd5e0;
+        }
+        .items-per-page select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 1px var(--primary-color);
+        }
+        .items-per-page select option {
+            padding: 8px;
+        }
+        .items-per-page label {
+            color: #4a5568;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <div class="sidebar">
+            <h2>Information Categories</h2>
+            <ul id="category-list"></ul>
+        </div>
+        <div class="content">
+            <h1 id="category-title">JavaScript Sensitive Information Report</h1>
+            <div class="search-container">
+                <input type="text" id="search-input" class="search-input" placeholder="Global search...">
+            </div>
+            <div class="controls">
+                <button id="copy-button" class="copy-button">Copy All Content</button>
+                <div class="items-per-page">
+                    <label for="items-per-page-select">Items per page:</label>
+                    <select id="items-per-page-select">
+                        <option value="10">10</option>
+                        <option value="20">20</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                    </select>
+                </div>
+            </div>
+            <div id="info-content"></div>
+        </div>
+    </div>
+    <div id="toast" class="toast hidden">Content copied to clipboard</div>
+
+    <script>
+        const sensitiveInfoReport = {
+            "示例分类": [{
+                fileName: "example.js",
+                lineNumber: 1,
+                content: "示例内容"
+            }]
+        });
+
+        let currentCategory = null;
+        let currentPage = 1;
+        let itemsPerPage = 10;
+        let currentItems = null;
+
+        function initializeDashboard() {
+            const categoryList = document.getElementById('category-list');
+            for (const category in sensitiveInfoReport) {
+                const li = document.createElement('li');
+                li.textContent = `${category} (${sensitiveInfoReport[category].length})`;
+                li.onclick = () => loadCategory(category);
+                categoryList.appendChild(li);
+            }
+
+            document.getElementById('search-input').addEventListener('input', debounce(globalSearch, 300));
+            document.getElementById('copy-button').addEventListener('click', copyAllContent);
+            document.getElementById('items-per-page-select').addEventListener('change', changeItemsPerPage);
+        }
+
+        function loadCategory(category) {
+            currentCategory = category;
+            currentPage = 1;
+            currentItems = sensitiveInfoReport[category];
+            document.getElementById('category-title').textContent = category;
+            displayItems();
+            updateActiveCategory();
+        }
+
+        function displayItems() {
+            const items = currentItems || sensitiveInfoReport[currentCategory];
+            const start = (currentPage - 1) * itemsPerPage;
+            const end = start + itemsPerPage;
+            const pageItems = items.slice(start, end);
+
+            const contentDiv = document.getElementById('info-content');
+            contentDiv.innerHTML = pageItems.map(item => `
+                <div class="info-item">
+                    <p><span class="file-name">${item.fileName}</span> - <span class="line-number">行 ${item.lineNumber}</span></p>
+                    <div class="sensitive-content">${item.content}</div>
+                </div>
+            `).join('');
+
+            // 更新分页控件
+            const totalPages = Math.ceil(items.length / itemsPerPage);
+            const paginationHtml = `
+                <div class="pagination">
+                    <button onclick="changePage(${currentPage - 1})" ${currentPage <= 1 ? 'disabled' : ''}>＜</button>
+                    <span>${currentPage} / ${totalPages}</span>
+                    <button onclick="changePage(${currentPage + 1})" ${currentPage >= totalPages ? 'disabled' : ''}>＞</button>
+                </div>
+            `;
+            contentDiv.insertAdjacentHTML('beforeend', paginationHtml);
+        }
+
+        function changePage(page) {
+            const items = currentItems || sensitiveInfoReport[currentCategory];
+            const totalPages = Math.ceil(items.length / itemsPerPage);
+            
+            // 确保页码在有效范围内
+            if (page >= 1 && page <= totalPages) {
+            currentPage = page;
+            displayItems();
+            }
+        }
+
+        function updateActiveCategory() {
+            const items = document.querySelectorAll('#category-list li');
+            items.forEach(item => {
+                if (item.textContent.startsWith(currentCategory)) {
+                    item.classList.add('active');
+                } else {
+                    item.classList.remove('active');
+                }
+            });
+        }
+
+        function globalSearch() {
+            const searchTerm = document.getElementById('search-input').value.toLowerCase();
+            if (!searchTerm) {
+                loadCategory(currentCategory);
+                return;
+            }
+
+            const results = [];
+            for (const category in sensitiveInfoReport) {
+                const matchingItems = sensitiveInfoReport[category].filter(item => 
+                    item.fileName.toLowerCase().includes(searchTerm) ||
+                    item.content.toLowerCase().includes(searchTerm)
+                );
+                results.push(...matchingItems);
+            }
+
+            currentPage = 1;
+            currentItems = results;
+            displayItems();
+            document.getElementById('category-title').textContent = `Search Results: "${searchTerm}"`;
+        }
+
+        function copyAllContent() {
+            const allContent = currentItems
+                .map(item => `${item.content}`)
+                .join('\n');
+
+            navigator.clipboard.writeText(allContent).then(() => {
+                showToast();
+            });
+        }
+
+        function showToast() {
+            const toast = document.getElementById('toast');
+                toast.style.opacity = '1';
+            setTimeout(() => {
+                toast.style.opacity = '0';
+            }, 3000);
+        }
+
+        function debounce(func, delay) {
+            let debounceTimer;
+            return function() {
+                const context = this;
+                const args = arguments;
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => func.apply(context, args), delay);
+            }
+        }
+
+        function changeItemsPerPage() {
+            itemsPerPage = parseInt(document.getElementById('items-per-page-select').value);
+            currentPage = 1;
+            displayItems();
+        }
+
+        // 初始化仪表板
+        initializeDashboard();
+        // 默认加载第一个类别
+        loadCategory(Object.keys(sensitiveInfoReport)[0]);
+    </script>
+</body>
+</html>
+
